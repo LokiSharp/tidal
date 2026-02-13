@@ -70,6 +70,7 @@
 
   - RULE-SET,Transit,Transit
 
+  - RULE-SET,Douyin,Domestic
   - RULE-SET,Domestic,Domestic
   - RULE-SET,Domestic IPs,Domestic
 
@@ -141,6 +142,7 @@ script:
             'miHoYo': 'miHoYo',
             'Transit': 'Transit',
             'Domestic': 'Domestic',
+            'Douyin': 'Domestic',
             'Domestic IPs': 'Domestic',
             'LAN': 'DIRECT'
           }
@@ -196,6 +198,12 @@ rule-providers:
     behavior: classical
     url: 'https://lokisharp.github.io/tidal/Clash/Provider/Transit.yaml'
     path: ./Rules/Transit
+    interval: 86400
+  Douyin:
+    type: http
+    behavior: classical
+    url: 'https://lokisharp.github.io/tidal/Clash/Provider/Douyin.yaml'
+    path: ./Rules/Douyin
     interval: 86400
   Domestic:
     type: http
