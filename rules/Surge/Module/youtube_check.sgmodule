@@ -1,0 +1,9 @@
+#!name=YouTube Premium Unlock Check
+#!desc=YouTube Premium Unlock Check
+#!system=ios
+
+[Panel]
+youtube_check = script-name=youtube_check,title="YouTube Premium",update-interval=1
+
+[Script]
+youtube_check = type=generic,script-path=https://lokisharp.github.io/tidal/Surge/Script/youtube_check.js,argument=title=YouTube Premium
