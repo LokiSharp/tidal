@@ -255,7 +255,16 @@ export function nodesToClashYaml(nodes: ProxyNode[]): string {
     const lines: string[] = ['proxies:'];
 
     for (const node of nodes) {
-        lines.push(`  - {${objectToInlineYaml(node.raw)}}`);
+        // 深拷贝 raw 对象以避免修改原对象
+        const proxy = { ...node.raw };
+
+        // 字段映射：Surge -> Clash
+        if (proxy['encrypt-method']) {
+            proxy['cipher'] = proxy['encrypt-method'];
+            delete proxy['encrypt-method'];
+        }
+
+        lines.push(`  - {${objectToInlineYaml(proxy)}}`);
     }
 
     return lines.join('\n') + '\n';
