@@ -57,31 +57,45 @@ app.get('/debug', async (c) => {
     });
 });
 
-app.get('/sub', async (c) => {
+app.on(['GET', 'POST'], '/sub', async (c) => {
     try {
-        const url = c.req.query('url');
+        let content = '';
+        let url = c.req.query('url');
         const format = c.req.query('format') || 'clash';
         const template = c.req.query('template') || 'dns';
         const full = c.req.query('full') !== 'false';
 
-        if (!url) {
-            return c.json({ error: 'Missing "url" query parameter' }, 400);
+        // 优先使用 POST body 中的内容
+        if (c.req.method === 'POST') {
+            const contentType = c.req.header('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const body = await c.req.json<{ content?: string; url?: string }>();
+                if (body.content) content = body.content;
+                if (body.url) url = body.url; // POST body 也可以带 url
+            } else {
+                content = await c.req.text();
+            }
         }
 
-        // 1. 拉取订阅
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            },
-        });
+        // 如果没有内容，尝试 fetch url
+        if (!content && url) {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                },
+            });
 
-        if (!response.ok) {
-            return c.json({
-                error: `Failed to fetch subscription: ${response.status} ${response.statusText}`,
-            }, 502);
+            if (!response.ok) {
+                return c.json({
+                    error: `Failed to fetch subscription: ${response.status} ${response.statusText}`,
+                }, 502);
+            }
+            content = await response.text();
         }
 
-        const content = await response.text();
+        if (!content) {
+            return c.json({ error: 'Missing subscription content (provide "url" parameter or POST body)' }, 400);
+        }
 
         // 2. 解析节点
         const nodes = parseSubscription(content);
