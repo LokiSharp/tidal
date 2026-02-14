@@ -41,6 +41,22 @@ app.get('/health', (c) => {
     return c.json({ status: 'ok' });
 });
 
+// 临时调试端点
+app.get('/debug', async (c) => {
+    const url = c.req.query('url');
+    if (!url) return c.json({ error: 'Missing url' }, 400);
+    const res = await fetch(url);
+    const text = await res.text();
+    return c.json({
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        length: text.length,
+        hasProxy: text.includes('[Proxy]'),
+        hasProxies: text.includes('proxies:'),
+        first500: text.slice(0, 500),
+    });
+});
+
 app.get('/sub', async (c) => {
     try {
         const url = c.req.query('url');
@@ -53,9 +69,7 @@ app.get('/sub', async (c) => {
         }
 
         // 1. 拉取订阅
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'ClashForAndroid/2.5.12' },
-        });
+        const response = await fetch(url);
 
         if (!response.ok) {
             return c.json({
