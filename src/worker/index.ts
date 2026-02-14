@@ -69,7 +69,11 @@ app.get('/sub', async (c) => {
         }
 
         // 1. 拉取订阅
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+        });
 
         if (!response.ok) {
             return c.json({
