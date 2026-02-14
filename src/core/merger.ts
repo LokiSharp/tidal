@@ -29,8 +29,12 @@ const PROXY_GROUP_NAMES = [
     'miHoYo', 'Domestic', 'Others',
 ] as const;
 
-/** 需要 REJECT 的策略组 */
-const REJECT_GROUPS = ['AdBlock', 'HTTPDNS'];
+
+
+/** 优先使用 DIRECT 的策略组 */
+const DIRECT_FIRST_GROUPS = [
+    'Domestic', 'CN Mainland TV', 'Apple', 'PayPal', 'Scholar', 'miHoYo', 'HTTPDNS'
+];
 
 /**
  * 生成 Clash proxy-groups YAML
@@ -39,30 +43,37 @@ function generateClashProxyGroups(nodeNames: string[]): string {
     const lines: string[] = ['proxy-groups:'];
     const allProxies = nodeNames.map(n => `"${n}"`).join(', ');
 
-    // 节点选择（手动）
-    lines.push(`  - name: "🚀 节点选择"`);
+    // 节点选择（Proxy）
+    lines.push(`  - name: "Proxy"`);
     lines.push(`    type: select`);
-    lines.push(`    proxies: [${allProxies}, DIRECT]`);
+    lines.push(`    proxies: ["Auto", ${allProxies}, DIRECT]`);
 
-    // 自动选择（延迟最低）
-    lines.push(`  - name: "♻️ 自动选择"`);
+    // 自动选择（Auto）
+    lines.push(`  - name: "Auto"`);
     lines.push(`    type: url-test`);
     lines.push(`    proxies: [${allProxies}]`);
     lines.push(`    url: 'http://www.gstatic.com/generate_204'`);
     lines.push(`    interval: 300`);
 
-    // REJECT 组
-    for (const name of REJECT_GROUPS) {
-        lines.push(`  - name: "${name}"`);
-        lines.push(`    type: select`);
-        lines.push(`    proxies: [REJECT, DIRECT]`);
-    }
+    // AdBlock (Block First)
+    lines.push(`  - name: "AdBlock"`);
+    lines.push(`    type: select`);
+    lines.push(`    proxies: [REJECT, DIRECT, Proxy]`);
 
-    // 各策略组：可选 节点选择/自动选择/各节点/DIRECT
+    // HTTPDNS (Direct First, then Block)
+    lines.push(`  - name: "HTTPDNS"`);
+    lines.push(`    type: select`);
+    lines.push(`    proxies: [DIRECT, REJECT, Proxy]`);
+
+    // 各策略组
     for (const name of PROXY_GROUP_NAMES) {
         lines.push(`  - name: "${name}"`);
         lines.push(`    type: select`);
-        lines.push(`    proxies: ["🚀 节点选择", "♻️ 自动选择", ${allProxies}, DIRECT]`);
+        if (DIRECT_FIRST_GROUPS.includes(name)) {
+            lines.push(`    proxies: [DIRECT, Proxy, "Auto", ${allProxies}]`);
+        } else {
+            lines.push(`    proxies: [Proxy, "Auto", DIRECT, ${allProxies}]`);
+        }
     }
 
     return lines.join('\n') + '\n';
@@ -75,15 +86,23 @@ function generateSurgeProxyGroups(nodeNames: string[]): string {
     const lines: string[] = ['[Proxy Group]'];
     const allNodes = nodeNames.join(', ');
 
-    lines.push(`🚀 节点选择 = select, ${allNodes}, DIRECT`);
-    lines.push(`♻️ 自动选择 = url-test, ${allNodes}, url=http://www.gstatic.com/generate_204, interval=300`);
+    lines.push(`Proxy = select, Auto, ${allNodes}, DIRECT`);
+    lines.push(`Auto = url-test, ${allNodes}, url=http://www.gstatic.com/generate_204, interval=300`);
 
-    for (const name of REJECT_GROUPS) {
-        lines.push(`${name} = select, REJECT, DIRECT`);
-    }
+    // AdBlock & HTTPDNS handled in main loop? 
+    // The PROXY_GROUP_NAMES list in code doesn't include AdBlock/HTTPDNS currently (they were separate).
+    // Let's add them to generation.
+
+    lines.push(`AdBlock = select, REJECT, DIRECT, Proxy`);
+    // HTTPDNS usually matches DIRECT_FIRST logic but with REJECT fallback
+    lines.push(`HTTPDNS = select, DIRECT, REJECT, Proxy`);
 
     for (const name of PROXY_GROUP_NAMES) {
-        lines.push(`${name} = select, 🚀 节点选择, ♻️ 自动选择, ${allNodes}, DIRECT`);
+        if (DIRECT_FIRST_GROUPS.includes(name)) {
+            lines.push(`${name} = select, DIRECT, Proxy, Auto, ${allNodes}`);
+        } else {
+            lines.push(`${name} = select, Proxy, Auto, DIRECT, ${allNodes}`);
+        }
     }
 
     return lines.join('\n') + '\n';
