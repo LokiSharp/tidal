@@ -1,0 +1,34 @@
+{
+    "name": "@lokisharp/tidal",
+    "version": "0.1.0",
+    "description": "Clash / Surge proxy rule-set hosting and subscription management",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx src/cli/index.ts",
+        "build": "bash scripts/build.sh",
+        "worker:dev": "wrangler dev src/worker/index.ts",
+        "worker:deploy": "wrangler deploy src/worker/index.ts",
+        "type-check": "tsc --noEmit"
+    },
+    "keywords": [
+        "clash",
+        "surge",
+        "proxy",
+        "subscription",
+        "cloudflare-workers"
+    ],
+    "author": "LokiSharp",
+    "license": "MIT",
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20260214.0",
+        "@types/js-yaml": "^4.0.9",
+        "@types/node": "^24.0.0",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3",
+        "wrangler": "^4.65.0"
+    },
+    "dependencies": {
+        "hono": "^4.11.9",
+        "js-yaml": "^4.1.1"
+    }
+}

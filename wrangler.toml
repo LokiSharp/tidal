@@ -1,0 +1,9 @@
+name = "tidal"
+main = "src/worker/index.ts"
+compatibility_date = "2026-02-14"
+
+# Cloudflare Workers 配置
+# 部署后可通过 https://tidal.<your-subdomain>.workers.dev 访问
+
+[env.production]
+name = "tidal"

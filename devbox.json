@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/main/.schema/devbox.schema.json",
+  "packages": [
+    "nodejs_24@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo '🌊 Tidal development environment ready!'",
+      "echo 'Run \"npm install\" to install dependencies'"
+    ]
+  }
+}

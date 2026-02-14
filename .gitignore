@@ -4,3 +4,6 @@
 *~
 dist/
 .devbox/
+node_modules/
+.wrangler/
+.dev.vars
