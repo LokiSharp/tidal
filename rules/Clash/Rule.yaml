@@ -68,6 +68,8 @@
 
   - RULE-SET,miHoYo,miHoYo
 
+  - RULE-SET,Trading,Trading
+
   - RULE-SET,Transit,Transit
 
   - RULE-SET,Douyin,Domestic
@@ -140,6 +142,7 @@ script:
             'Steam': 'Steam',
             'TikTok': 'TikTok',
             'miHoYo': 'miHoYo',
+            'Trading': 'Trading',
             'Transit': 'Transit',
             'Domestic': 'Domestic',
             'Douyin': 'Domestic',
@@ -564,4 +567,10 @@ rule-providers:
     behavior: classical
     url: 'https://lokisharp.github.io/tidal/Clash/Provider/miHoYo.yaml'
     path: ./Rules/miHoYo
+    interval: 86400
+  Trading:
+    type: http
+    behavior: classical
+    url: 'https://lokisharp.github.io/tidal/Clash/Provider/Trading.yaml'
+    path: ./Rules/Trading
     interval: 86400

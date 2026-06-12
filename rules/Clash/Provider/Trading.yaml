@@ -1,0 +1,68 @@
+payload:
+  # Futu / 富途 / 富途牛牛
+  - DOMAIN-SUFFIX,futu.com
+  - DOMAIN-SUFFIX,futu.cn
+  - DOMAIN-SUFFIX,futuhk.com
+  - DOMAIN-SUFFIX,futuhk2.com
+  - DOMAIN-SUFFIX,futunn.com
+  - DOMAIN-SUFFIX,futunn.hk
+  - DOMAIN-SUFFIX,futunn.app
+  - DOMAIN-SUFFIX,futunn.net
+  - DOMAIN-SUFFIX,futunnapi.com
+  - DOMAIN-SUFFIX,futunnlog.com
+  - DOMAIN-SUFFIX,futuhn.com
+  - DOMAIN-SUFFIX,futu.link
+  - DOMAIN-SUFFIX,futuinc.com
+  - DOMAIN-SUFFIX,futuniuniu.com
+  - DOMAIN-SUFFIX,futubull.cn
+  - DOMAIN-SUFFIX,futufin.com
+  - DOMAIN-SUFFIX,futuholdings.com
+  - DOMAIN-SUFFIX,futuesop.com
+  - DOMAIN-SUFFIX,futuchain.com
+  - DOMAIN-SUFFIX,futustatic.com
+
+  # Futu numbered domains
+  - DOMAIN-SUFFIX,futu0.com
+  - DOMAIN-SUFFIX,futu1.com
+  - DOMAIN-SUFFIX,futu2.com
+  - DOMAIN-SUFFIX,futu3.com
+  - DOMAIN-SUFFIX,futu4.com
+  - DOMAIN-SUFFIX,futu5.com
+  - DOMAIN-SUFFIX,futu6.com
+  - DOMAIN-SUFFIX,futu7.com
+  - DOMAIN-SUFFIX,futu8.com
+  - DOMAIN-SUFFIX,futu9.com
+
+  # Deep link
+  - DOMAIN-SUFFIX,futunn.app.link
+
+    # Moomoo
+  - DOMAIN-SUFFIX,moomoo.com
+  - DOMAIN-SUFFIX,moomooequity.com
+  - DOMAIN-SUFFIX,moomootrustee.com
+
+  # Longbridge / LongPort / 长桥
+  - DOMAIN-SUFFIX,longbridge.com
+  - DOMAIN-SUFFIX,longbridge.hk
+  - DOMAIN-SUFFIX,longbridge.cn
+  - DOMAIN-SUFFIX,longbridgeapp.com
+  - DOMAIN-SUFFIX,longbridgehk.com
+  - DOMAIN-SUFFIX,longbridge.global
+  - DOMAIN-SUFFIX,longportapp.com
+  - DOMAIN-SUFFIX,longportapp.cn
+
+  # Longbridge related infrastructure
+  - DOMAIN-SUFFIX,lbkrs.com
+  - DOMAIN-SUFFIX,lbctrl.com
+  - DOMAIN-SUFFIX,wbrks.com
+
+  # Tiger Brokers / 老虎证券
+  - DOMAIN-SUFFIX,tigerbrokers.com
+  - DOMAIN-SUFFIX,tigerbrokers.hk
+  - DOMAIN-SUFFIX,tigerbrokersapp.com
+  - DOMAIN-SUFFIX,tigerbrokersapi.com
+  - DOMAIN-SUFFIX,tigercdn.com
+  - DOMAIN-SUFFIX,tigertrade.com
+  - DOMAIN-SUFFIX,tigertrade.hk
+  - DOMAIN-SUFFIX,tigertradeapp.com
+  - DOMAIN-SUFFIX,tigeropenapi.com
