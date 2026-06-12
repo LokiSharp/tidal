@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, basename } from 'node:path';
 import { build } from '../core/builder.js';
-import { listToYaml, yamlToList } from '../core/converter.js';
+import { listToYaml, yamlToListWithDiagnostics } from '../core/converter.js';
 
 const { positionals } = parseArgs({
     allowPositionals: true,
@@ -53,10 +53,20 @@ async function main() {
                 await writeFile(outPath, yaml, 'utf-8');
                 console.log(`✅ ${basename(absPath)} → ${basename(outPath)}`);
             } else if (absPath.endsWith('.yaml') || absPath.endsWith('.yml')) {
-                const list = yamlToList(content);
+                const result = yamlToListWithDiagnostics(content);
                 const outPath = absPath.replace(/\.(yaml|yml)$/, '.list');
-                await writeFile(outPath, list, 'utf-8');
+                await writeFile(outPath, result.content, 'utf-8');
                 console.log(`✅ ${basename(absPath)} → ${basename(outPath)}`);
+
+                if (result.warnings.length > 0) {
+                    console.warn(`⚠️  跳过 ${result.warnings.length} 条 Surge 不兼容规则`);
+                    for (const warning of result.warnings.slice(0, 20)) {
+                        console.warn(`   L${warning.line}: ${warning.rule} (${warning.reason})`);
+                    }
+                    if (result.warnings.length > 20) {
+                        console.warn(`   ...还有 ${result.warnings.length - 20} 条`);
+                    }
+                }
             } else {
                 console.error('不支持的文件格式，只支持 .list 和 .yaml');
                 process.exit(1);
@@ -71,7 +81,7 @@ async function main() {
   npx tsx src/cli/index.ts <command>
 
 命令:
-  build      构建规则集（.list → .yaml）
+  build      构建规则集（Clash YAML → Surge list）
   convert    单文件格式转换
 `);
             break;

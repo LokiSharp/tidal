@@ -1,17 +1,17 @@
 /**
- * Builder: 构建规则集（替代 build.sh）
+ * Builder: 构建规则集
  *
  * 流程：
  * 1. 清理 dist/
- * 2. 复制 rules/* → dist/
- * 3. 遍历 Provider/*.list → 转换为 Clash YAML → dist/Clash/Provider/
- * 4. 移动 .list → dist/Surge/Provider/
- * 5. 校验文件数量一致
+ * 2. 复制 rules/Clash → dist/Clash（Clash YAML 为唯一规则源）
+ * 3. 复制 rules/Surge → dist/Surge（配置片段）
+ * 4. 遍历 rules/Clash/Provider/*.yaml → dist/Surge/Provider/*.list
+ * 5. 校验 Clash/Surge Provider 文件数量一致
  */
 
 import { readdir, readFile, writeFile, mkdir, cp, rm, stat } from 'node:fs/promises';
-import { join, relative, dirname, basename } from 'node:path';
-import { listToYaml } from './converter.js';
+import { join, relative, dirname } from 'node:path';
+import { validateClashProvider, yamlToListWithDiagnostics, type ConversionWarning } from './converter.js';
 
 export interface BuildOptions {
     /** rules 目录路径 */
@@ -29,6 +29,10 @@ export interface BuildResult {
     clashCount: number;
     /** 是否通过校验 */
     verified: boolean;
+    /** 生成 Surge 时跳过的 Clash-only 规则数 */
+    warningCount: number;
+    /** Clash 源规则校验错误数 */
+    validationErrorCount: number;
 }
 
 /**
@@ -81,9 +85,15 @@ async function exists(path: string): Promise<boolean> {
  */
 export async function build(options: BuildOptions): Promise<BuildResult> {
     const { rulesDir, distDir } = options;
-    const providerDir = join(rulesDir, 'Provider');
-    const clashProviderDir = join(distDir, 'Clash', 'Provider');
+    const clashDir = join(rulesDir, 'Clash');
+    const surgeDir = join(rulesDir, 'Surge');
+    const sourceClashProviderDir = join(clashDir, 'Provider');
+    const distClashDir = join(distDir, 'Clash');
+    const distSurgeDir = join(distDir, 'Surge');
+    const clashProviderDir = join(distClashDir, 'Provider');
     const surgeProviderDir = join(distDir, 'Surge', 'Provider');
+    const allWarnings: Array<{ file: string; warning: ConversionWarning }> = [];
+    const validationErrors: Array<{ file: string; warning: ConversionWarning }> = [];
 
     console.log('🌊 Tidal build starting...');
 
@@ -93,46 +103,72 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     }
     await ensureDir(distDir);
 
-    // 2. 复制 rules/* → dist/
-    await cp(rulesDir, distDir, { recursive: true });
+    // 2. 复制 Clash 原始配置与 Provider
+    await cp(clashDir, distClashDir, { recursive: true });
 
-    // 3. 转换 .list → .yaml
-    await ensureDir(clashProviderDir);
+    // 3. 复制 Surge 配置片段
+    await cp(surgeDir, distSurgeDir, { recursive: true });
+    await rm(surgeProviderDir, { recursive: true, force: true });
+    await ensureDir(surgeProviderDir);
 
-    const listFiles = await findFiles(providerDir, '.list');
+    // 4. 从 Clash Provider 生成 Surge Provider
+    const yamlFiles = [
+        ...(await findFiles(sourceClashProviderDir, '.yaml')),
+        ...(await findFiles(sourceClashProviderDir, '.yml')),
+    ];
     let convertedCount = 0;
 
-    for (const listFile of listFiles) {
-        const relPath = relative(providerDir, listFile);
-        const yamlRelPath = relPath.replace(/\.list$/, '.yaml');
-        const destPath = join(clashProviderDir, yamlRelPath);
+    for (const yamlFile of yamlFiles) {
+        const relPath = relative(sourceClashProviderDir, yamlFile);
+        const listRelPath = relPath.replace(/\.(yaml|yml)$/, '.list');
+        const destPath = join(surgeProviderDir, listRelPath);
 
         await ensureDir(dirname(destPath));
 
-        const content = await readFile(listFile, 'utf-8');
-        const yamlContent = listToYaml(content);
-        await writeFile(destPath, yamlContent, 'utf-8');
+        const content = await readFile(yamlFile, 'utf-8');
+        for (const warning of validateClashProvider(content)) {
+            validationErrors.push({ file: relPath, warning });
+        }
+
+        const result = yamlToListWithDiagnostics(content);
+        await writeFile(destPath, result.content, 'utf-8');
+
+        for (const warning of result.warnings) {
+            allWarnings.push({ file: relPath, warning });
+        }
 
         convertedCount++;
     }
 
-    // 4. 移动 .list → dist/Surge/Provider/
-    const distProviderDir = join(distDir, 'Provider');
-    await ensureDir(surgeProviderDir);
-
-    if (await exists(distProviderDir)) {
-        await cp(distProviderDir, surgeProviderDir, { recursive: true });
-        await rm(distProviderDir, { recursive: true });
+    if (validationErrors.length > 0) {
+        console.error(`❌ Found ${validationErrors.length} non-Clash rules in Clash source providers`);
+        for (const { file, warning } of validationErrors.slice(0, 20)) {
+            console.error(`   ${file}:${warning.line} ${warning.rule} (${warning.reason})`);
+        }
+        if (validationErrors.length > 20) {
+            console.error(`   ...and ${validationErrors.length - 20} more`);
+        }
     }
 
-    console.log(`✅ Generated ${convertedCount} Clash YAML rule-sets`);
+    console.log(`✅ Copied ${convertedCount} Clash YAML rule-sets`);
+    console.log(`✅ Generated ${convertedCount} Surge list rule-sets`);
+
+    if (allWarnings.length > 0) {
+        console.warn(`⚠️  Skipped ${allWarnings.length} Clash-only rules while generating Surge providers`);
+        for (const { file, warning } of allWarnings.slice(0, 20)) {
+            console.warn(`   ${file}:${warning.line} ${warning.rule} (${warning.reason})`);
+        }
+        if (allWarnings.length > 20) {
+            console.warn(`   ...and ${allWarnings.length - 20} more`);
+        }
+    }
 
     // 5. 校验
     const surgeFiles = await findFiles(surgeProviderDir, '.list');
     const clashFiles = await findFiles(clashProviderDir, '.yaml');
     const surgeCount = surgeFiles.length;
     const clashCount = clashFiles.length;
-    const verified = surgeCount === clashCount;
+    const verified = surgeCount === clashCount && validationErrors.length === 0;
 
     if (verified) {
         console.log(`✅ File count matches: ${surgeCount} provider files`);
@@ -142,5 +178,12 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
 
     console.log(`🌊 Build complete → ${distDir}`);
 
-    return { convertedCount, surgeCount, clashCount, verified };
+    return {
+        convertedCount,
+        surgeCount,
+        clashCount,
+        verified,
+        warningCount: allWarnings.length,
+        validationErrorCount: validationErrors.length,
+    };
 }

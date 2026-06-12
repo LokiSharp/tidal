@@ -2,7 +2,7 @@
 
 Clash / Surge 代理规则集托管。
 
-规则以 Surge `.list` 格式为唯一源，部署时自动生成 Clash `.yaml` 格式。
+规则以 Clash/Mihomo `payload` YAML 格式为唯一源，部署时自动生成 Surge `.list` 格式。
 
 ## 使用
 
@@ -28,13 +28,6 @@ rule-providers:
 
 ```
 rules/
-├── Provider/          # 唯一规则源 (.list)
-│   ├── AdBlock.list
-│   ├── Telegram.list
-│   ├── Media/
-│   │   ├── Netflix.list
-│   │   └── ...
-│   └── ...
 ├── Surge/             # Surge 配置片段
 │   ├── Head.conf
 │   ├── Rule.conf
@@ -43,10 +36,17 @@ rules/
 │   └── Script/
 └── Clash/             # Clash 配置片段
     ├── Head.yaml
-    └── Rule.yaml
+    ├── Rule.yaml
+    └── Provider/      # 唯一规则源 (.yaml)
+        ├── AdBlock.yaml
+        ├── Telegram.yaml
+        ├── Media/
+        │   ├── Netflix.yaml
+        │   └── ...
+        └── ...
 ```
 
-部署时 `scripts/build.sh` 自动将 `.list` 转换为 Clash 的 `.yaml` 格式。
+部署时 `npm run build` 会复制 Clash 原始 YAML，并自动生成 Surge 的 `.list` Provider。Clash/Mihomo 独有规则在生成 Surge 时会被跳过并输出 warning；Surge 独有规则不应写入 Clash 源 Provider。
 
 ## 部署
 
