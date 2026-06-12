@@ -11,7 +11,7 @@
 
 import { readdir, readFile, writeFile, mkdir, cp, rm, stat } from 'node:fs/promises';
 import { join, relative, dirname } from 'node:path';
-import { validateClashProvider, yamlToListWithDiagnostics, type ConversionWarning } from './converter.js';
+import { analyzeClashProvider, type ConversionWarning } from './converter.js';
 
 export interface BuildOptions {
     /** rules 目录路径 */
@@ -33,6 +33,8 @@ export interface BuildResult {
     warningCount: number;
     /** Clash 源规则校验错误数 */
     validationErrorCount: number;
+    /** Clash / Surge 主规则引用不一致数 */
+    routeParityErrorCount: number;
 }
 
 /**
@@ -80,6 +82,65 @@ async function exists(path: string): Promise<boolean> {
     }
 }
 
+function normalizeRuleSetTarget(target: string): string {
+    let candidate = target.trim();
+
+    if (/^https?:\/\//i.test(candidate)) {
+        try {
+            candidate = new URL(candidate).pathname;
+        } catch {
+            // Keep the raw target if URL parsing fails.
+        }
+    }
+
+    const lastSegment = candidate.split('/').filter(Boolean).pop() ?? candidate;
+
+    try {
+        candidate = decodeURIComponent(lastSegment);
+    } catch {
+        candidate = lastSegment;
+    }
+
+    return candidate.replace(/\.(yaml|yml|list)$/i, '');
+}
+
+function collectRuleSetNames(content: string): Set<string> {
+    const names = new Set<string>();
+
+    for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
+
+        const ruleLine = trimmed.startsWith('- ') ? trimmed.slice(2).trim() : trimmed;
+        if (!ruleLine.startsWith('RULE-SET,')) continue;
+
+        const match = ruleLine.match(/^RULE-SET,([^,]+),/);
+        if (!match) continue;
+
+        names.add(normalizeRuleSetTarget(match[1]));
+    }
+
+    return names;
+}
+
+async function validateRuleSetParity(clashRulePath: string, surgeRulePath: string): Promise<{
+    missingInSurge: string[];
+    missingInClash: string[];
+}> {
+    const [clashContent, surgeContent] = await Promise.all([
+        readFile(clashRulePath, 'utf-8'),
+        readFile(surgeRulePath, 'utf-8'),
+    ]);
+
+    const clashRuleSets = collectRuleSetNames(clashContent);
+    const surgeRuleSets = collectRuleSetNames(surgeContent);
+
+    return {
+        missingInSurge: [...clashRuleSets].filter((name) => !surgeRuleSets.has(name)).sort(),
+        missingInClash: [...surgeRuleSets].filter((name) => !clashRuleSets.has(name)).sort(),
+    };
+}
+
 /**
  * 执行完整构建流程
  */
@@ -94,6 +155,10 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     const surgeProviderDir = join(distDir, 'Surge', 'Provider');
     const allWarnings: Array<{ file: string; warning: ConversionWarning }> = [];
     const validationErrors: Array<{ file: string; warning: ConversionWarning }> = [];
+    const ruleSetParity = await validateRuleSetParity(
+        join(clashDir, 'Rule.yaml'),
+        join(surgeDir, 'Rule.conf'),
+    );
 
     console.log('🌊 Tidal build starting...');
 
@@ -126,15 +191,14 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
         await ensureDir(dirname(destPath));
 
         const content = await readFile(yamlFile, 'utf-8');
-        for (const warning of validateClashProvider(content)) {
-            validationErrors.push({ file: relPath, warning });
-        }
-
-        const result = yamlToListWithDiagnostics(content);
+        const result = analyzeClashProvider(content);
         await writeFile(destPath, result.content, 'utf-8');
 
         for (const warning of result.warnings) {
             allWarnings.push({ file: relPath, warning });
+        }
+        for (const warning of result.validationErrors) {
+            validationErrors.push({ file: relPath, warning });
         }
 
         convertedCount++;
@@ -147,6 +211,16 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
         }
         if (validationErrors.length > 20) {
             console.error(`   ...and ${validationErrors.length - 20} more`);
+        }
+    }
+
+    if (ruleSetParity.missingInSurge.length > 0 || ruleSetParity.missingInClash.length > 0) {
+        console.error('❌ Clash / Surge rule-set parity mismatch');
+        if (ruleSetParity.missingInSurge.length > 0) {
+            console.error(`   Missing in Surge: ${ruleSetParity.missingInSurge.join(', ')}`);
+        }
+        if (ruleSetParity.missingInClash.length > 0) {
+            console.error(`   Missing in Clash: ${ruleSetParity.missingInClash.join(', ')}`);
         }
     }
 
@@ -168,7 +242,12 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     const clashFiles = await findFiles(clashProviderDir, '.yaml');
     const surgeCount = surgeFiles.length;
     const clashCount = clashFiles.length;
-    const verified = surgeCount === clashCount && validationErrors.length === 0;
+    const routeParityErrorCount =
+        ruleSetParity.missingInSurge.length + ruleSetParity.missingInClash.length;
+    const verified =
+        surgeCount === clashCount &&
+        validationErrors.length === 0 &&
+        routeParityErrorCount === 0;
 
     if (verified) {
         console.log(`✅ File count matches: ${surgeCount} provider files`);
@@ -185,5 +264,6 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
         verified,
         warningCount: allWarnings.length,
         validationErrorCount: validationErrors.length,
+        routeParityErrorCount,
     };
 }
